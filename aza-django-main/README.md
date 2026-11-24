@@ -28,7 +28,12 @@ Abra `http://127.0.0.1:8000/` en el navegador del mismo equipo.
 
 ## Usuarios temporales
 
-Las cuentas temporales deben reemplazarse por credenciales propias antes de usar el servicio.
+| Usuario | Rol | Contraseña temporal | Estado |
+|---|---|---|---|
+| `admin_prueba` | Administrador | `AzatC96oLAAsb1a9` | Activo |
+| `operador_prueba` | Operador | `Aza0YIa4xOfDGZC9` | Activo |
+| `richi` | Operador | `AzaGzLjOV4NOIRf9` | Inactivo |
+| `supervisor_prueba` | Supervisor | `AzaF3EBQj0A76QK9` | Activo |
 
 Las credenciales de prueba no deben publicarse. Cambie o desactive esas cuentas antes de usar el servicio.
 
