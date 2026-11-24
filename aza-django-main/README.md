@@ -119,10 +119,11 @@ configura `DEBUG=0` y `DB_SCHEMA=aza`.
 
 Al crear el servicio, ingrese `DATABASE_URL` con la cadena Session pooler de
 Supabase, el puerto 5432 y el usuario/clave de base de datos con permisos sobre
-el esquema `aza`. Ingrese tambien las variables SMTP requeridas (`EMAIL_HOST`,
-`EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` y `DEFAULT_FROM_EMAIL`). Render Free
-bloquea los puertos SMTP 25, 465 y 587; configure un proveedor SMTP con STARTTLS
-en un puerto permitido, por ejemplo 2525, y ajuste `EMAIL_PORT` si corresponde.
+el esquema `aza`. El servicio puede iniciar sin SMTP, pero el OTP de Administrador y la recuperacion
+por correo quedan deshabilitados hasta configurar `EMAIL_HOST`, `EMAIL_HOST_USER`,
+`EMAIL_HOST_PASSWORD` y `DEFAULT_FROM_EMAIL`. Render Free bloquea los puertos SMTP
+25, 465 y 587; use un proveedor con STARTTLS en un puerto permitido, por ejemplo
+2525, y ajuste `EMAIL_PORT` si corresponde.
 Si utiliza el endpoint de captura, ingrese un secreto aleatorio en
 `API_TOKEN_CAPTURA`; si se deja vacio, ese endpoint permanece deshabilitado.
 

@@ -210,22 +210,27 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 if DEBUG:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    EMAIL_CONFIGURADO = True
 else:
-    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
     EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
     EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
     DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "")
-    if not all(valor.strip() for valor in (EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, DEFAULT_FROM_EMAIL)):
-        raise ImproperlyConfigured("Configure EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD y DEFAULT_FROM_EMAIL.")
-    try:
-        EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
-    except ValueError:
-        raise ImproperlyConfigured("EMAIL_PORT debe ser un puerto SMTP válido.") from None
-    if not 1 <= EMAIL_PORT <= 65535:
-        raise ImproperlyConfigured("EMAIL_PORT debe ser un puerto SMTP válido.")
-    EMAIL_USE_TLS = True
-    EMAIL_TIMEOUT = 10
+    EMAIL_CONFIGURADO = all(valor.strip() for valor in (EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, DEFAULT_FROM_EMAIL))
+    if EMAIL_CONFIGURADO:
+        EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+        try:
+            EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+        except ValueError:
+            raise ImproperlyConfigured("EMAIL_PORT debe ser un puerto SMTP valido.") from None
+        if not 1 <= EMAIL_PORT <= 65535:
+            raise ImproperlyConfigured("EMAIL_PORT debe ser un puerto SMTP valido.")
+        EMAIL_USE_TLS = True
+        EMAIL_TIMEOUT = 10
+    else:
+        # Deja disponible la pagina mientras se configura SMTP; el envio de
+        # OTP y recuperacion permanece deshabilitado hasta tener credenciales.
+        EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # Sin token configurado, la API de captura queda deshabilitada.
 API_TOKEN_CAPTURA = os.environ.get("API_TOKEN_CAPTURA", "")

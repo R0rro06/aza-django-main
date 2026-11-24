@@ -138,7 +138,10 @@ def login_view(request):
         if usuario.rol == ADM:
             if _emitir_otp(request, usuario):
                 return redirect("login_otp")
-            messages.error(request, "No se pudo enviar el código de verificación. Intente más tarde.")
+            if not getattr(settings, "EMAIL_CONFIGURADO", True):
+                messages.error(request, "SMTP no esta configurado. El Administrador no puede iniciar sesion hasta habilitar el correo.")
+            else:
+                messages.error(request, "No se pudo enviar el c\u00f3digo de verificaci\u00f3n. Intente m\u00e1s tarde.")
             return render(request, "trefilado/login.html", {"form": form})
 
         return _finalizar_login(request, usuario, ip)

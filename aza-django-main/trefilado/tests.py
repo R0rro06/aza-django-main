@@ -30,7 +30,7 @@ from aza_project import settings as proyecto_settings
 from aza_project.test_runner import SQLiteTestRunner
 from . import views
 from .models import Inspeccion, Lote, MetricaCaptura, Receta, TokenRecuperacion, Usuario
-from .services import cambiar_clave
+from .services import cambiar_clave, enviar_correo
 
 
 def captura(angulo):
@@ -632,9 +632,10 @@ class ConfiguracionProduccionTests(SimpleTestCase):
         ])
         conexion.close.assert_called_once_with()
 
-    def test_produccion_exige_smtp_configurado(self):
-        with self.assertRaisesMessage(ImproperlyConfigured, "Configure EMAIL_HOST"):
-            self._cargar_settings({"DEBUG": "0", "SECRET_KEY": self.clave_produccion, "DATABASE_URL": self.url_postgresql})
+    def test_produccion_arranca_sin_smtp_pero_deshabilita_el_envio(self):
+        config = self._cargar_settings({"DEBUG": "0", "SECRET_KEY": self.clave_produccion, "DATABASE_URL": self.url_postgresql})
+        self.assertFalse(config["EMAIL_CONFIGURADO"])
+        self.assertEqual(config["EMAIL_BACKEND"], "django.core.mail.backends.console.EmailBackend")
 
     def test_produccion_rechaza_secret_key_ausente_o_trivial_sin_imprimirla(self):
         casos = {
@@ -670,8 +671,15 @@ class ConfiguracionProduccionTests(SimpleTestCase):
         self.assertEqual(configuracion["DATABASES"]["default"]["ENGINE"], "django.db.backends.postgresql")
         self.assertEqual(configuracion["SECRET_KEY"], self.clave_produccion)
         self.assertEqual(configuracion["EMAIL_BACKEND"], "django.core.mail.backends.smtp.EmailBackend")
+        self.assertTrue(configuracion["EMAIL_CONFIGURADO"])
         self.assertEqual(configuracion["EMAIL_PORT"], 2525)
         self.assertTrue(configuracion["EMAIL_USE_TLS"])
+
+    @override_settings(EMAIL_CONFIGURADO=False)
+    @patch("trefilado.services.send_mail")
+    def test_correo_no_se_considera_enviado_sin_smtp(self, enviar):
+        self.assertFalse(enviar_correo("admin@example.org", "OTP", "123456"))
+        enviar.assert_not_called()
 
     def test_produccion_acepta_solo_hosts_configurados_y_prefiere_el_origen_canonico(self):
         entorno = {

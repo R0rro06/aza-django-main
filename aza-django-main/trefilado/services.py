@@ -87,7 +87,7 @@ def cambiar_clave(usuario, nueva):
 
 
 def enviar_correo(destino, asunto, mensaje):
-    if not destino:
+    if not destino or not getattr(settings, "EMAIL_CONFIGURADO", True):
         return False
     return send_mail(asunto, mensaje, None, [destino], fail_silently=False)
 
