@@ -27,6 +27,7 @@
     {% else %}
       <div class="grupo">Control</div>
       <a href="{% url 'control' %}" {% if u == 'control' %}class="activo"{% endif %}>Dashboard de control</a>
+      <a href="{% url 'panel' %}" {% if u == 'panel' %}class="activo"{% endif %}>Inspecciones del operador</a>
       <a href="{% url 'dashboard' %}" {% if u == 'dashboard' %}class="activo"{% endif %}>Métricas reales</a>
       <a href="{% url 'historial' %}" {% if u == 'historial' %}class="activo"{% endif %}>Histórico de capturas</a>
       <a href="{% url 'auditoria' %}" {% if u == 'auditoria' %}class="activo"{% endif %}>Registro de auditoría</a>

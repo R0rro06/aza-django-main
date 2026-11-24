@@ -233,7 +233,7 @@ def seleccion(request):
     return render(request, "trefilado/seleccion.html", {"recetas": recetas, "lotes": lotes, "receta_sel": receta, "lote_sel": lote})
 
 
-@rol_requerido(OP)
+@rol_requerido(OP, ADM)
 def panel(request):
     # Solo se convierten capturas con asociación explícita completa.
     # El lote determina la receta; nunca se atribuye el operador conectado.
