@@ -14,6 +14,7 @@
     <tr><th>Fecha/hora de recepción</th><td>{{ insp.fecha_hora_recepcion|date:"d-m-Y H:i:s" }}</td></tr>
   </table>
 </div>
+{% if user.rol == 'SUPERVISOR' or user.rol == 'ADMINISTRADOR' %}
 <div class="tarjeta">
   <h3>Estado de inspección</h3>
   <form method="post">{% csrf_token %}
@@ -24,6 +25,7 @@
     <button type="submit">Guardar estado</button>
   </form>
 </div>
+{% endif %}
 {% if alertas %}
 <div class="tarjeta"><h3>Alertas asociadas</h3>
   <table><tr><th>Generada</th><th>Estado</th><th>Revisada por</th><th>Observación</th></tr>

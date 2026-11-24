@@ -235,13 +235,14 @@ def seleccion(request):
 
 @rol_requerido(OP)
 def panel(request):
-    # Convierte capturas con ángulo y operador asignado en inspecciones una sola vez.
-    # Los registros sin operador no se atribuyen automáticamente a la persona conectada.
+    # Solo se convierten capturas con asociación explícita completa.
+    # El lote determina la receta; nunca se atribuye el operador conectado.
     pendientes = MetricaCaptura.objects.filter(
-        exit_angle_deg__isnull=False, operador__isnull=False, inspeccion_generada__isnull=True,
-    ).filter(Q(receta__isnull=False) | Q(lote__receta__isnull=False)).select_related("lote", "receta", "operador")
+        exit_angle_deg__isnull=False, operador__isnull=False, lote__isnull=False,
+        inspeccion_generada__isnull=True,
+    ).select_related("lote__receta", "operador")
     for metrica in pendientes.iterator():
-        receta = metrica.receta or (metrica.lote.receta if metrica.lote_id else None)
+        receta = metrica.lote.receta
         estado = clasificar(metrica.exit_angle_deg, receta)
         inspeccion, creada = Inspeccion.objects.get_or_create(
             metrica=metrica,
@@ -291,19 +292,23 @@ def inspeccion_detalle(request, pk):
     insp = get_object_or_404(Inspeccion.objects.select_related("lote", "receta"), pk=pk)
     form = EvidenciaForm()
     if request.method == "POST":
-        nuevo_estado = request.POST.get("estado")
-        if nuevo_estado:
-            if request.user.rol not in (OP, SUP, ADM):
+        if "estado" in request.POST:
+            if request.user.rol not in (SUP, ADM):
                 return HttpResponseForbidden()
+            nuevo_estado = request.POST.get("estado")
             estados = {valor for valor, _ in Inspeccion.Estado.choices}
             if nuevo_estado not in estados:
                 messages.error(request, "Estado de inspección no válido.")
-            else:
+            elif nuevo_estado != insp.estado:
+                estado_anterior = insp.estado
                 insp.estado = nuevo_estado
                 insp.save(update_fields=["estado"])
                 if nuevo_estado == Inspeccion.Estado.RECHAZADO:
                     Alerta.objects.get_or_create(inspeccion=insp)
-                registrar_auditoria(request.user, "ESTADO_INSPECCION_EDITADO", f"Inspección {insp.pk}: {nuevo_estado}")
+                registrar_auditoria(
+                    request.user, "ESTADO_INSPECCION_EDITADO", f"Inspección {insp.pk}",
+                    anterior=estado_anterior, nuevo=nuevo_estado,
+                )
                 messages.success(request, "Estado de inspección actualizado.")
             return redirect("inspeccion_detalle", pk=pk)
         if request.user.rol != OP:
@@ -548,13 +553,20 @@ def metrica_detalle(request, pk):
             messages.error(request, "Selecciona un Operador activo y un lote válido.")
         elif metrica.exit_angle_deg is None:
             messages.error(request, "Esta captura no tiene ángulo y no se puede convertir en inspección.")
+        elif hasattr(metrica, "inspeccion_generada"):
+            messages.error(request, "Esta captura ya está conectada a una inspección y sus asociaciones no se pueden cambiar aquí.")
         else:
+            anterior = "operador={}, lote={}, receta={}".format(metrica.operador_id or "sin asignar", metrica.lote_id or "sin asignar", metrica.receta_id or "sin asignar")
             metrica.operador = operador
             metrica.lote = lote
             metrica.receta = lote.receta
             metrica.save(update_fields=["operador", "lote", "receta"])
-            messages.success(request, "Captura asociada. La inspección se generará al abrir el panel del Operador.")
-            registrar_auditoria(request.user, "CAPTURA_ASOCIADA_INSPECCION", f"Captura {metrica.pk}")
+            nuevo = "operador={}, lote={}, receta={}".format(operador.pk, lote.pk, lote.receta_id)
+            registrar_auditoria(
+                request.user, "CAPTURA_ASOCIADA_INSPECCION", f"Captura {metrica.pk}",
+                anterior=anterior, nuevo=nuevo,
+            )
+            messages.success(request, "Captura asociada. La inspección aparecerá en el Panel del Operador.")
             return redirect("metrica_detalle", pk=pk)
     return render(request, "trefilado/metrica_detalle.html", {
         "metrica": metrica,

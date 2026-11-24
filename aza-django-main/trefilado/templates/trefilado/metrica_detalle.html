@@ -21,7 +21,12 @@
     <tr><th>Ruta original del diagnóstico</th><td class="mono">{{ metrica.diagnostic_path }}</td></tr>
   </table>
 </div>
-{% if user.rol == 'SUPERVISOR' or user.rol == 'ADMINISTRADOR' %}
+{% if metrica.inspeccion_generada %}
+<div class="tarjeta">
+  <h3>Inspección asociada</h3>
+  <p>Esta captura ya está conectada a la inspección <a href="{% url 'inspeccion_detalle' metrica.inspeccion_generada.pk %}">N° {{ metrica.inspeccion_generada.pk }}</a>.</p>
+</div>
+{% elif user.rol == 'SUPERVISOR' or user.rol == 'ADMINISTRADOR' %}
 <div class="tarjeta">
   <h3>Asociar captura a una inspección</h3>
   {% if metrica.exit_angle_deg is None %}<p>Esta captura no tiene ángulo medido y no se puede convertir en inspección.</p>
