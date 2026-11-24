@@ -9,7 +9,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.utils import timezone
 
-from .models import Auditoria, IntentoLogin, IpPermitida, Inspeccion, Parametro, Respaldo
+from .models import Auditoria, IntentoLogin, IpPermitida, Inspeccion, Parametro, Respaldo, Usuario
 
 # nombre: (valor por defecto, descripción)
 PARAM_DEFAULTS = {
@@ -72,7 +72,8 @@ def cambiar_clave(usuario, nueva):
     usuario.set_password(nueva)
     fecha = timezone.now()
     version_nueva = uuid.uuid4()
-    actualizados = type(usuario).objects.filter(
+    # request.user puede ser SimpleLazyObject, que no expone el manager objects.
+    actualizados = Usuario.objects.filter(
         pk=usuario.pk, version_seguridad=version_anterior, is_active=True
     ).update(
         password=usuario.password,

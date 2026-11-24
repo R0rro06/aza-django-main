@@ -23,14 +23,54 @@ from django.db import IntegrityError, OperationalError, connection
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from django.utils.functional import SimpleLazyObject
 from django.utils import timezone
 from openpyxl import load_workbook
 
 from aza_project import settings as proyecto_settings
 from aza_project.test_runner import SQLiteTestRunner
 from . import views
-from .models import Auditoria, Inspeccion, Lote, MetricaCaptura, Receta, TokenRecuperacion, Usuario
+from .models import Alerta, Auditoria, Inspeccion, Lote, MetricaCaptura, Receta, TokenRecuperacion, Usuario
 from .services import cambiar_clave, enviar_correo
+
+
+class CorreccionInformeTests(TestCase):
+    def test_cambiar_clave_acepta_usuario_lazy_de_django(self):
+        usuario = Usuario.objects.create_user(username="clave_lazy", password="ClaveOriginal9")
+        proxy_usuario = SimpleLazyObject(lambda: usuario)
+
+        self.assertTrue(cambiar_clave(proxy_usuario, "ClaveNueva8"))
+        usuario.refresh_from_db()
+        self.assertTrue(usuario.check_password("ClaveNueva8"))
+
+    def test_panel_operador_muestra_inspeccion_estado_y_alerta(self):
+        operador = Usuario.objects.create_user(
+            username="operador_panel", password="ClaveSegura9", rol=Usuario.Rol.OPERADOR,
+        )
+        receta = Receta.objects.create(
+            nombre="Receta panel", espesor=1, materialidad="Acero", limite_min=10, limite_max=20,
+        )
+        lote = Lote.objects.create(
+            identificador="LOTE-PANEL", receta=receta, turno=Lote.Turno.MANANA,
+        )
+        inspeccion = Inspeccion.objects.create(
+            lote=lote, receta=receta, operador=operador, angulo=25,
+            estado=Inspeccion.Estado.RECHAZADO, limite_min=10, limite_max=20,
+            fecha_hora_dato=timezone.now(),
+        )
+        Alerta.objects.create(inspeccion=inspeccion)
+        self.client.force_login(operador)
+        sesion = self.client.session
+        sesion["auth_version"] = str(operador.version_seguridad)
+        sesion.save()
+
+        respuesta = self.client.get(reverse("panel"))
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.context["ultima"], inspeccion)
+        self.assertContains(respuesta, "LOTE-PANEL")
+        self.assertContains(respuesta, "Rechazado")
+        self.assertContains(respuesta, "Alerta pendiente")
 
 
 def captura(angulo):
@@ -283,6 +323,18 @@ class ExportarInspeccionesTests(TestCase):
         respuesta = self.client.post(
             reverse("api_inspecciones"),
             data='{"angulo": NaN, "lote": "LOTE-CSV", "receta": 1, "operador": "operador_csv"}',
+            content_type="application/json", HTTP_AUTHORIZATION="Bearer token-csv",
+        )
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertFalse(Inspeccion.objects.exists())
+
+    def test_api_rechaza_booleanos_como_angulo(self):
+        respuesta = self.client.post(
+            reverse("api_inspecciones"),
+            data=json.dumps({
+                "angulo": True, "lote": self.lote.identificador,
+                "receta": self.receta.pk, "operador": self.operador.username,
+            }),
             content_type="application/json", HTTP_AUTHORIZATION="Bearer token-csv",
         )
         self.assertEqual(respuesta.status_code, 400)

@@ -26,33 +26,12 @@ inicializada, compruebe la conexión y ejecute el servidor de desarrollo.
 
 Abra `http://127.0.0.1:8000/` en el navegador del mismo equipo.
 
-## Usuarios temporales
+## Cuentas de usuario
 
-| Usuario | Rol | Contraseña temporal | Estado |
-|---|---|---|---|
-| `admin_prueba` | Administrador | `AzatC96oLAAsb1a9` | Activo |
-| `operador_prueba` | Operador | `Aza0YIa4xOfDGZC9` | Activo |
-| `richi` | Operador | `AzaGzLjOV4NOIRf9` | Inactivo |
-| `supervisor_prueba` | Supervisor | `AzaF3EBQj0A76QK9` | Activo |
-
-Las credenciales de prueba no deben publicarse. Cambie o desactive esas cuentas antes de usar el servicio.
-
-Los Administradores ingresan con usuario y contraseña; cambie cualquier contraseña temporal antes de usar el servicio.
-
-Al preparar una base nueva, ejecute `migrate`, `importar_metricas` y `crear_admin`
-desde el entorno virtual. El comando `crear_admin` solicita los datos reales del
-primer administrador y oculta la contraseña al escribirla. Después, el administrador
-puede crear usuarios de los otros roles y configurar la lista de IPs de Operadores.
-
-Para desarrollo aislado, establezca `DEBUG=1` y `AZA_SQLITE_LOCAL=1` con
-`DATABASE_URL` vacía. Django usa `db.sqlite3`. Ejecute `migrate` para inicializar esa
-base si está vacía. Quite `AZA_SQLITE_LOCAL` al volver a la base compartida. El
-arranque se detiene si ambas opciones están configuradas.
-
-`python manage.py test` usa SQLite en memoria e ignora `.env` y `DATABASE_URL`.
-Si llama a `call_command("test")` desde un proceso configurado con PostgreSQL, el
-ejecutor de pruebas de AZA se detiene antes de preparar la base de pruebas. Ejecute
-el comando en un proceso nuevo para usar SQLite en memoria.
+No se publican usuarios ni contrase?as de acceso. En una base nueva, cree el primer
+Administrador con `python manage.py crear_admin`; luego cree las cuentas Operador y
+Supervisor desde la aplicaci?n. Si una credencial de prueba estuvo publicada,
+rotela antes de usar el despliegue.
 
 ## Datos reales
 
@@ -181,6 +160,6 @@ RLS; deben revisarse por separado antes de utilizar su Data API.
 la base se conecta asi se tiene que ver
 
 "
-DATABASE_URL=postgresql://postgres.hxgewarawsnhttcxpnhw:aza_project%40123@aws-1-us-east-2.pooler.supabase.com:5432/postgres
+DATABASE_URL=<cadena Session pooler configurada de forma privada>
 DB_SCHEMA=aza
 "

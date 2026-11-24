@@ -235,10 +235,14 @@ def seleccion(request):
 
 @rol_requerido(OP)
 def panel(request):
+    inspecciones = (
+        Inspeccion.objects.select_related("lote", "receta", "operador")
+        .prefetch_related("alertas")[:8]
+    )
     ctx = {
-        "ultima": MetricaCaptura.objects.first(),
-        "recientes": MetricaCaptura.objects.all()[:8],
-        "intervalo": 10,
+        "ultima": inspecciones[0] if inspecciones else None,
+        "inspecciones": inspecciones,
+        "intervalo": 2,
     }
     if request.GET.get("parcial"):
         return render(request, "trefilado/_panel_contenido.html", ctx)
@@ -1006,6 +1010,8 @@ def api_inspecciones(request):
     # CU17 A3: datos malformados
     try:
         datos = json.loads(request.body.decode("utf-8"))
+        if isinstance(datos.get("angulo"), bool):
+            raise ValueError
         angulo = float(datos["angulo"])
         if not math.isfinite(angulo):
             raise ValueError

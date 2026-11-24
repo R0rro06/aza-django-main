@@ -1,24 +1,26 @@
 {% if ultima %}
 <div class="tarjeta">
-  <h3>Captura más reciente · Trigger {{ ultima.trigger }}</h3>
-  <p>Fecha: {{ ultima.fecha_hora|date:"d-m-Y H:i:s" }} · Escena: {{ ultima.scene }}</p>
-  <p>{% if ultima.exit_angle_deg is not None %}<strong>Ángulo de salida: {{ ultima.exit_angle_deg|floatformat:2 }}°</strong>{% else %}<strong>Sin medición de ángulo</strong>{% endif %} · Confianza: {{ ultima.angle_confidence }}</p>
-  <a href="{% url 'metrica_detalle' ultima.pk %}">Ver todos los datos de la captura</a>
+  <h3>Inspecci?n m?s reciente ? {{ ultima.get_estado_display }}</h3>
+  <p>Fecha: {{ ultima.fecha_hora_dato|date:"d-m-Y H:i:s" }} ? Lote: {{ ultima.lote.identificador }}</p>
+  <p>Receta: {{ ultima.receta|default:"Sin receta" }} ? Operador: {{ ultima.operador|default:"No informado" }}</p>
+  <p><strong>?ngulo: {{ ultima.angulo|floatformat:2 }}?</strong></p>
+  <a href="{% url 'inspeccion_detalle' ultima.pk %}">Ver detalle de la inspecci?n</a>
 </div>
 {% else %}
-<div class="tarjeta">Aún no se han importado capturas reales.</div>
+<div class="tarjeta">A?n no se han recibido inspecciones.</div>
 {% endif %}
 
 <div class="tarjeta">
-  <h3>Últimas capturas</h3>
+  <h3>?ltimas inspecciones y alertas</h3>
   <table>
-    <tr><th>Fecha/hora</th><th>Trigger</th><th>Escena</th><th>Ángulo</th><th>Confianza</th><th></th></tr>
-    {% for i in recientes %}
+    <tr><th>Fecha/hora</th><th>Lote</th><th>Receta</th><th>?ngulo</th><th>Estado</th><th>Alerta</th><th></th></tr>
+    {% for i in inspecciones %}
     <tr>
-      <td>{{ i.fecha_hora|date:"d-m-Y H:i:s" }}</td><td>{{ i.trigger }}</td><td>{{ i.scene }}</td>
-      <td>{% if i.exit_angle_deg is not None %}{{ i.exit_angle_deg|floatformat:2 }}°{% else %}Sin medición{% endif %}</td>
-      <td>{{ i.angle_confidence }}</td><td><a href="{% url 'metrica_detalle' i.pk %}">Detalle</a></td>
+      <td>{{ i.fecha_hora_dato|date:"d-m-Y H:i:s" }}</td><td>{{ i.lote.identificador }}</td><td>{{ i.receta|default:"Sin receta" }}</td>
+      <td>{{ i.angulo|floatformat:2 }}?</td><td>{{ i.get_estado_display }}</td>
+      <td>{% for alerta in i.alertas.all %}{% if not alerta.revisada %}<strong>Alerta pendiente</strong>{% else %}Revisada{% endif %}{% empty %}Sin alerta{% endfor %}</td>
+      <td><a href="{% url 'inspeccion_detalle' i.pk %}">Detalle</a></td>
     </tr>
-    {% empty %}<tr><td colspan="6">Sin capturas.</td></tr>{% endfor %}
+    {% empty %}<tr><td colspan="7">A?n no se han recibido inspecciones.</td></tr>{% endfor %}
   </table>
 </div>
