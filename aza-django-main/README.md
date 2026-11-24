@@ -28,11 +28,11 @@ Abra `http://127.0.0.1:8000/` en el navegador del mismo equipo.
 
 ## Usuarios temporales
 
-Las siguientes contraseñas temporales permiten recuperar el acceso mientras se configura el despliegue. Deben cambiarse después del primer inicio de sesión.
+Las cuentas temporales deben reemplazarse por credenciales propias antes de usar el servicio.
 
 Las credenciales de prueba no deben publicarse. Cambie o desactive esas cuentas antes de usar el servicio.
 
-Los Administradores ingresan con usuario y contrase??a; cambie cualquier contrase??a temporal antes de usar el servicio.
+Los Administradores ingresan con usuario y contraseña; cambie cualquier contraseña temporal antes de usar el servicio.
 
 Al preparar una base nueva, ejecute `migrate`, `importar_metricas` y `crear_admin`
 desde el entorno virtual. El comando `crear_admin` solicita los datos reales del
@@ -167,7 +167,7 @@ se asignan automáticamente a un lote o receta. Al importar JSON, una captura se
 asocia al lote y receta cuando existe exactamente un lote para su fecha; si hay
 cero o varios lotes ese día, queda sin vínculo para evitar una atribución ambigua.
 
-Los Administradores ingresan con usuario y contrase??a. La recuperaci??n de claves por correo requiere SMTP. La API de captura queda deshabilitada hasta configurar
+Los Administradores ingresan con usuario y contraseña; cambie cualquier contraseña temporal antes de usar el servicio.
 `API_TOKEN_CAPTURA`. El proyecto Supabase contiene tablas previas en `public` sin
 RLS; deben revisarse por separado antes de utilizar su Data API.
 
