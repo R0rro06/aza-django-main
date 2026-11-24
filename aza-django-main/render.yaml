@@ -3,6 +3,7 @@ services:
     name: aza-trefilado
     runtime: python
     plan: free
+    rootDir: aza-django-main
     buildCommand: bash build.sh
     startCommand: bash start.sh
     envVars:
