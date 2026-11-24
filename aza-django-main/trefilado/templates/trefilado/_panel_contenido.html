@@ -1,26 +1,26 @@
 {% if ultima %}
 <div class="tarjeta">
-  <h3>Inspecci?n m?s reciente ? {{ ultima.get_estado_display }}</h3>
-  <p>Fecha: {{ ultima.fecha_hora_dato|date:"d-m-Y H:i:s" }} ? Lote: {{ ultima.lote.identificador }}</p>
-  <p>Receta: {{ ultima.receta|default:"Sin receta" }} ? Operador: {{ ultima.operador|default:"No informado" }}</p>
-  <p><strong>?ngulo: {{ ultima.angulo|floatformat:2 }}?</strong></p>
-  <a href="{% url 'inspeccion_detalle' ultima.pk %}">Ver detalle de la inspecci?n</a>
+  <h3>Inspección más reciente · {{ ultima.get_estado_display }}</h3>
+  <p>Fecha: {{ ultima.fecha_hora_dato|date:"d-m-Y H:i:s" }} · Lote: {{ ultima.lote.identificador }}</p>
+  <p>Receta: {{ ultima.receta|default:"Sin receta" }} · Operador: {{ ultima.operador|default:"No informado" }}</p>
+  <p><strong>Ángulo: {{ ultima.angulo|floatformat:2 }}°</strong></p>
+  <a href="{% url 'inspeccion_detalle' ultima.pk %}">Ver detalle de la inspección</a>
 </div>
 {% else %}
-<div class="tarjeta">A?n no se han recibido inspecciones.</div>
+<div class="tarjeta">Aún no se han recibido inspecciones.</div>
 {% endif %}
 
 <div class="tarjeta">
-  <h3>?ltimas inspecciones y alertas</h3>
+  <h3>Últimas inspecciones y alertas</h3>
   <table>
-    <tr><th>Fecha/hora</th><th>Lote</th><th>Receta</th><th>?ngulo</th><th>Estado</th><th>Alerta</th><th></th></tr>
+    <tr><th>Fecha/hora</th><th>Lote</th><th>Receta</th><th>Ángulo</th><th>Estado</th><th>Alerta</th><th></th></tr>
     {% for i in inspecciones %}
     <tr>
       <td>{{ i.fecha_hora_dato|date:"d-m-Y H:i:s" }}</td><td>{{ i.lote.identificador }}</td><td>{{ i.receta|default:"Sin receta" }}</td>
-      <td>{{ i.angulo|floatformat:2 }}?</td><td>{{ i.get_estado_display }}</td>
+      <td>{{ i.angulo|floatformat:2 }}°</td><td>{{ i.get_estado_display }}</td>
       <td>{% for alerta in i.alertas.all %}{% if not alerta.revisada %}<strong>Alerta pendiente</strong>{% else %}Revisada{% endif %}{% empty %}Sin alerta{% endfor %}</td>
       <td><a href="{% url 'inspeccion_detalle' i.pk %}">Detalle</a></td>
     </tr>
-    {% empty %}<tr><td colspan="7">A?n no se han recibido inspecciones.</td></tr>{% endfor %}
+    {% empty %}<tr><td colspan="7">Aún no se han recibido inspecciones.</td></tr>{% endfor %}
   </table>
 </div>
