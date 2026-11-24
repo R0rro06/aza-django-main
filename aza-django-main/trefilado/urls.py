@@ -34,6 +34,7 @@ urlpatterns = [
     path("administracion/recetas/", views.recetas, name="recetas"),
     path("administracion/recetas/nueva/", views.receta_nueva, name="receta_nueva"),
     path("administracion/recetas/<int:pk>/editar/", views.receta_editar, name="receta_editar"),
+    path("administracion/recetas/<int:pk>/eliminar/", views.receta_eliminar, name="receta_eliminar"),
     path("administracion/parametros/", views.parametros, name="parametros"),
     path("administracion/respaldos/", views.respaldos, name="respaldos"),
     path("administracion/respaldos/ejecutar/", views.respaldo_ejecutar, name="respaldo_ejecutar"),

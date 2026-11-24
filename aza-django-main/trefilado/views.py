@@ -14,6 +14,7 @@ from django.contrib.sessions.models import Session
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count, Max, Min, Q
+from django.db.models.deletion import ProtectedError
 from django.db.models.functions import TruncDate
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -774,6 +775,28 @@ def receta_editar(request, pk):
         messages.success(request, "Receta actualizada. Las inspecciones ya registradas conservan los valores con que fueron evaluadas.")
         return redirect("recetas")
     return render(request, "trefilado/form_pagina.html", {"titulo": f"Editar receta {r.nombre}", "form": form, "volver": "recetas"})
+
+
+@rol_requerido(ADM)
+@require_POST
+def receta_eliminar(request, pk):
+    receta = get_object_or_404(Receta, pk=pk)
+    if receta.lotes.exists() or receta.inspecciones.exists() or receta.metricas_capturadas.exists():
+        messages.error(request, "No se puede eliminar: la receta tiene lotes o registros asociados. Puede marcarla como no vigente.")
+        return redirect("recetas")
+
+    nombre = receta.nombre
+    anterior = _txt_receta(receta)
+    try:
+        with transaction.atomic():
+            receta.delete()
+            registrar_auditoria(request.user, "RECETA_ELIMINADA", f"Receta {nombre}", anterior=anterior)
+    except ProtectedError:
+        messages.error(request, "No se puede eliminar: la receta está asociada a registros existentes.")
+        return redirect("recetas")
+
+    messages.success(request, f"Receta {nombre} eliminada.")
+    return redirect("recetas")
 
 
 # =====================================================================================

@@ -9,7 +9,12 @@
   <tr><td>{{ r.nombre }}</td><td>{{ r.espesor|floatformat:2 }}</td><td>{{ r.materialidad }}</td>
     <td>{{ r.limite_min|floatformat:2 }}° – {{ r.limite_max|floatformat:2 }}°</td>
     <td>{% if r.vigente %}Vigente (activa){% else %}No vigente{% endif %}</td>
-    <td><a class="boton sec chico" href="{% url 'receta_editar' r.pk %}">Editar</a></td></tr>
+    <td class="acciones">
+      <a class="boton sec chico" href="{% url 'receta_editar' r.pk %}">Editar</a>
+      <form method="post" action="{% url 'receta_eliminar' r.pk %}" onsubmit="return confirm('Eliminar esta receta?');">
+        {% csrf_token %}<button class="peligro chico" type="submit">Eliminar</button>
+      </form>
+    </td></tr>
   {% empty %}<tr><td colspan="6">No hay recetas.</td></tr>{% endfor %}
 </table>
 {% endblock %}

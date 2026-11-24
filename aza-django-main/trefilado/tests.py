@@ -29,7 +29,7 @@ from openpyxl import load_workbook
 from aza_project import settings as proyecto_settings
 from aza_project.test_runner import SQLiteTestRunner
 from . import views
-from .models import Inspeccion, Lote, MetricaCaptura, Receta, TokenRecuperacion, Usuario
+from .models import Auditoria, Inspeccion, Lote, MetricaCaptura, Receta, TokenRecuperacion, Usuario
 from .services import cambiar_clave, enviar_correo
 
 
@@ -287,6 +287,51 @@ class ExportarInspeccionesTests(TestCase):
         )
         self.assertEqual(respuesta.status_code, 400)
         self.assertFalse(Inspeccion.objects.exists())
+
+
+class EliminarRecetaTests(TestCase):
+    def setUp(self):
+        self.admin = Usuario.objects.create_user(
+            username="admin_recetas", password="ClaveSegura9", rol=Usuario.Rol.ADMINISTRADOR,
+        )
+        self.client.force_login(self.admin)
+        sesion = self.client.session
+        sesion["auth_version"] = str(self.admin.version_seguridad)
+        sesion.save()
+        self.receta = Receta.objects.create(
+            nombre="Receta para eliminar", espesor=1.0, materialidad="Acero",
+            limite_min=10, limite_max=20,
+        )
+
+    def test_elimina_receta_sin_registros_y_audita_la_accion(self):
+        respuesta = self.client.post(reverse("receta_eliminar", args=[self.receta.pk]))
+        self.assertRedirects(respuesta, reverse("recetas"))
+        self.assertFalse(Receta.objects.filter(pk=self.receta.pk).exists())
+        self.assertTrue(Auditoria.objects.filter(accion="RECETA_ELIMINADA", usuario=self.admin).exists())
+
+    def test_no_elimina_receta_asociada_a_lote(self):
+        Lote.objects.create(
+            identificador="LOTE-RECETA-PROTEGIDA", receta=self.receta, turno=Lote.Turno.MANANA,
+        )
+        respuesta = self.client.post(reverse("receta_eliminar", args=[self.receta.pk]))
+        self.assertRedirects(respuesta, reverse("recetas"))
+        self.assertTrue(Receta.objects.filter(pk=self.receta.pk).exists())
+        self.assertFalse(Auditoria.objects.filter(accion="RECETA_ELIMINADA").exists())
+
+    def test_no_elimina_receta_asociada_a_metrica_historica(self):
+        MetricaCaptura.objects.create(
+            archivo_origen="captura_receta_protegida.json", trigger="001",
+            fecha_hora=timezone.now(), total_frames=1, scene="oscura", mean_background=0,
+            exit_confidence="ALTA", circle_support_frames=1, angle_confidence="ALTA",
+            receta=self.receta,
+        )
+        self.client.post(reverse("receta_eliminar", args=[self.receta.pk]))
+        self.assertTrue(Receta.objects.filter(pk=self.receta.pk).exists())
+
+    def test_eliminar_receta_requiere_post(self):
+        respuesta = self.client.get(reverse("receta_eliminar", args=[self.receta.pk]))
+        self.assertEqual(respuesta.status_code, 405)
+        self.assertTrue(Receta.objects.filter(pk=self.receta.pk).exists())
 
 
 class AdministradorInicialTests(TestCase):
