@@ -28,11 +28,17 @@ Abra `http://127.0.0.1:8000/` en el navegador del mismo equipo.
 
 ## Cuentas de usuario
 
-No se publican usuarios ni contrase?as de acceso. En una base nueva, cree el primer
-Administrador con `python manage.py crear_admin`; luego cree las cuentas Operador y
-Supervisor desde la aplicaci?n. Si una credencial de prueba estuvo publicada,
-rotela antes de usar el despliegue.
+Credenciales de demostraci?n para la revisi?n del proyecto:
 
+| Usuario | Rol | Contrase?a | Estado |
+|---|---|---|---|
+| `admin_prueba` | Administrador | `AzatC96oLAAsb1a9` | Activo |
+| `operador_prueba` | Operador | `Aza0YIa4xOfDGZC9` | Activo |
+| `richi` | Operador | `AzaGzLjOV4NOIRf9` | Inactivo |
+| `supervisor_prueba` | Supervisor | `AzaF3EBQj0A76QK9` | Activo |
+
+Estas cuentas son solo para demostraci?n. No reutilice esas contrase?as en otros
+sistemas y c?mbielas o desactive las cuentas al terminar la revisi?n.
 ## Datos reales
 
 - `/operador/panel/`: últimas capturas, con «Sin medición» donde el JSON no trae ángulo.
