@@ -4,7 +4,8 @@
 <h2>Detalle de inspección N° {{ insp.pk }}</h2>
 <div class="tarjeta">
   <table>
-    <tr><th>Lote</th><td>{{ insp.lote.identificador }}</td></tr>
+    <tr><th>Lote</th><td>{% if insp.lote %}{{ insp.lote.identificador }}{% else %}Sin lote asociado{% endif %}</td></tr>
+    <tr><th>Operador</th><td>{{ insp.operador|default:"Sin operador asociado" }}</td></tr>
     <tr><th>Receta</th><td>{% if insp.receta %}{{ insp.receta.nombre }}{% else %}Sin receta{% endif %}</td></tr>
     <tr><th>Ángulo medido</th><td>{{ insp.angulo|floatformat:2 }}°</td></tr>
     <tr><th>Límites evaluados</th><td>{% if insp.limite_min is not None %}{{ insp.limite_min|floatformat:2 }}° – {{ insp.limite_max|floatformat:2 }}°{% else %}—{% endif %}</td></tr>
@@ -12,6 +13,16 @@
     <tr><th>Fecha/hora del dato</th><td>{{ insp.fecha_hora_dato|date:"d-m-Y H:i:s" }}</td></tr>
     <tr><th>Fecha/hora de recepción</th><td>{{ insp.fecha_hora_recepcion|date:"d-m-Y H:i:s" }}</td></tr>
   </table>
+</div>
+<div class="tarjeta">
+  <h3>Estado de inspección</h3>
+  <form method="post">{% csrf_token %}
+    <label for="estado">Estado</label>
+    <select name="estado" id="estado">
+      {% for valor, etiqueta in estados %}<option value="{{ valor }}" {% if insp.estado == valor %}selected{% endif %}>{{ etiqueta }}</option>{% endfor %}
+    </select>
+    <button type="submit">Guardar estado</button>
+  </form>
 </div>
 {% if alertas %}
 <div class="tarjeta"><h3>Alertas asociadas</h3>

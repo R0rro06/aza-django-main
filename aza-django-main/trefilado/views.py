@@ -235,6 +235,29 @@ def seleccion(request):
 
 @rol_requerido(OP)
 def panel(request):
+    # Convierte capturas con ángulo y operador asignado en inspecciones una sola vez.
+    # Los registros sin operador no se atribuyen automáticamente a la persona conectada.
+    pendientes = MetricaCaptura.objects.filter(
+        exit_angle_deg__isnull=False, operador__isnull=False, inspeccion_generada__isnull=True,
+    ).filter(Q(receta__isnull=False) | Q(lote__receta__isnull=False)).select_related("lote", "receta", "operador")
+    for metrica in pendientes.iterator():
+        receta = metrica.receta or (metrica.lote.receta if metrica.lote_id else None)
+        estado = clasificar(metrica.exit_angle_deg, receta)
+        inspeccion, creada = Inspeccion.objects.get_or_create(
+            metrica=metrica,
+            defaults={
+                "lote": metrica.lote,
+                "receta": receta,
+                "operador": metrica.operador,
+                "angulo": metrica.exit_angle_deg,
+                "estado": estado,
+                "limite_min": receta.limite_min if receta and receta.vigente else None,
+                "limite_max": receta.limite_max if receta and receta.vigente else None,
+                "fecha_hora_dato": metrica.fecha_hora,
+            },
+        )
+        if creada and estado == Inspeccion.Estado.RECHAZADO:
+            Alerta.objects.get_or_create(inspeccion=inspeccion)
     inspecciones = (
         Inspeccion.objects.select_related("lote", "receta", "operador")
         .prefetch_related("alertas")[:8]
@@ -268,6 +291,21 @@ def inspeccion_detalle(request, pk):
     insp = get_object_or_404(Inspeccion.objects.select_related("lote", "receta"), pk=pk)
     form = EvidenciaForm()
     if request.method == "POST":
+        nuevo_estado = request.POST.get("estado")
+        if nuevo_estado:
+            if request.user.rol not in (OP, SUP, ADM):
+                return HttpResponseForbidden()
+            estados = {valor for valor, _ in Inspeccion.Estado.choices}
+            if nuevo_estado not in estados:
+                messages.error(request, "Estado de inspección no válido.")
+            else:
+                insp.estado = nuevo_estado
+                insp.save(update_fields=["estado"])
+                if nuevo_estado == Inspeccion.Estado.RECHAZADO:
+                    Alerta.objects.get_or_create(inspeccion=insp)
+                registrar_auditoria(request.user, "ESTADO_INSPECCION_EDITADO", f"Inspección {insp.pk}: {nuevo_estado}")
+                messages.success(request, "Estado de inspección actualizado.")
+            return redirect("inspeccion_detalle", pk=pk)
         if request.user.rol != OP:
             messages.error(request, "Solo el Operador puede asociar evidencia visual.")
             return redirect("inspeccion_detalle", pk=pk)
@@ -286,7 +324,10 @@ def inspeccion_detalle(request, pk):
                 registrar_auditoria(request.user, "EVIDENCIA_ASOCIADA", f"Inspección {insp.pk}")
                 messages.success(request, "Evidencia visual asociada a la inspección.")
             return redirect("inspeccion_detalle", pk=pk)
-    return render(request, "trefilado/inspeccion_detalle.html", {"insp": insp, "form": form, "alertas": insp.alertas.all()})
+    return render(request, "trefilado/inspeccion_detalle.html", {
+        "insp": insp, "form": form, "alertas": insp.alertas.all(),
+        "estados": Inspeccion.Estado.choices,
+    })
 
 
 @rol_requerido()
@@ -495,8 +536,31 @@ def historial(request):
 
 @rol_requerido(OP, SUP, ADM)
 def metrica_detalle(request, pk):
-    metrica = get_object_or_404(MetricaCaptura, pk=pk)
-    return render(request, "trefilado/metrica_detalle.html", {"metrica": metrica})
+    metrica = get_object_or_404(MetricaCaptura.objects.select_related("operador", "lote", "receta"), pk=pk)
+    if request.method == "POST":
+        if request.user.rol not in (SUP, ADM):
+            return HttpResponseForbidden()
+        operador = Usuario.objects.filter(
+            pk=request.POST.get("operador"), rol=OP, is_active=True,
+        ).first()
+        lote = Lote.objects.filter(pk=request.POST.get("lote")).select_related("receta").first()
+        if operador is None or lote is None:
+            messages.error(request, "Selecciona un Operador activo y un lote válido.")
+        elif metrica.exit_angle_deg is None:
+            messages.error(request, "Esta captura no tiene ángulo y no se puede convertir en inspección.")
+        else:
+            metrica.operador = operador
+            metrica.lote = lote
+            metrica.receta = lote.receta
+            metrica.save(update_fields=["operador", "lote", "receta"])
+            messages.success(request, "Captura asociada. La inspección se generará al abrir el panel del Operador.")
+            registrar_auditoria(request.user, "CAPTURA_ASOCIADA_INSPECCION", f"Captura {metrica.pk}")
+            return redirect("metrica_detalle", pk=pk)
+    return render(request, "trefilado/metrica_detalle.html", {
+        "metrica": metrica,
+        "operadores": Usuario.objects.filter(rol=OP, is_active=True).order_by("username"),
+        "lotes": Lote.objects.select_related("receta").order_by("-fecha", "identificador"),
+    })
 
 
 def _svg_tendencia(valores, lim_min=None, lim_max=None):

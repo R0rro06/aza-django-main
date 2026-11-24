@@ -94,7 +94,7 @@ class Inspeccion(models.Model):
         RECHAZADO = "RECHAZADO", "Rechazado"
         SIN_RECETA = "SIN_RECETA", "Sin receta"
 
-    lote = models.ForeignKey(Lote, on_delete=models.PROTECT, related_name="inspecciones")
+    lote = models.ForeignKey(Lote, on_delete=models.PROTECT, null=True, blank=True, related_name="inspecciones")
     receta = models.ForeignKey(Receta, on_delete=models.PROTECT, null=True, blank=True, related_name="inspecciones")
     operador = models.ForeignKey(
         "trefilado.Usuario",
@@ -112,6 +112,10 @@ class Inspeccion(models.Model):
     fecha_hora_recepcion = models.DateTimeField(default=timezone.now)
     imagen = models.FileField(upload_to="evidencias/", blank=True)
     imagen_referencia = models.CharField(max_length=255, blank=True)
+    metrica = models.OneToOneField(
+        "trefilado.MetricaCaptura", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="inspeccion_generada",
+    )
 
     class Meta:
         ordering = ["-fecha_hora_dato", "-id"]

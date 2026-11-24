@@ -21,6 +21,24 @@
     <tr><th>Ruta original del diagnóstico</th><td class="mono">{{ metrica.diagnostic_path }}</td></tr>
   </table>
 </div>
+{% if user.rol == 'SUPERVISOR' or user.rol == 'ADMINISTRADOR' %}
+<div class="tarjeta">
+  <h3>Asociar captura a una inspección</h3>
+  {% if metrica.exit_angle_deg is None %}<p>Esta captura no tiene ángulo medido y no se puede convertir en inspección.</p>
+  {% else %}
+  <p>Selecciona el operador y el lote correctos. La receta se tomará del lote.</p>
+  <form method="post">{% csrf_token %}
+    <div class="campo"><label for="operador">Operador</label><select name="operador" id="operador" required>
+      <option value="">Seleccionar operador</option>{% for o in operadores %}<option value="{{ o.pk }}" {% if metrica.operador_id == o.pk %}selected{% endif %}>{{ o.username }} · {{ o.nombre_completo }}</option>{% endfor %}
+    </select></div>
+    <div class="campo"><label for="lote">Lote</label><select name="lote" id="lote" required>
+      <option value="">Seleccionar lote</option>{% for l in lotes %}<option value="{{ l.pk }}" {% if metrica.lote_id == l.pk %}selected{% endif %}>{{ l.identificador }} · {{ l.receta.nombre }}</option>{% endfor %}
+    </select></div>
+    <button type="submit">Guardar asociación</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
 <p class="pie-tabla">La ruta del diagnóstico pertenece al equipo que generó el JSON; la imagen no está incluida en los archivos recibidos.</p>
 <a class="boton sec" href="javascript:history.back()">Volver</a>
 {% endblock %}
