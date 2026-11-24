@@ -18,10 +18,6 @@ class LoginForm(forms.Form):
     password = forms.CharField(label="Contraseña", widget=forms.PasswordInput)
 
 
-class OTPForm(forms.Form):
-    codigo = forms.CharField(label="Código OTP (6 dígitos)", min_length=6, max_length=6)
-
-
 class RecuperarForm(forms.Form):
     identificador = forms.CharField(label="Nombre de usuario o correo registrado", max_length=150)
 

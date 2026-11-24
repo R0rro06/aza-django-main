@@ -17,10 +17,6 @@ def rol_requerido(*roles):
                 logout(request)
                 messages.error(request, "Su sesión cambió. Inicie sesión nuevamente.")
                 return redirect("login")
-            if request.user.rol == "ADMINISTRADOR" and not request.session.get("otp_verificado"):
-                logout(request)
-                messages.error(request, "Debe iniciar sesión de nuevo y verificar su código para acceder como Administrador.")
-                return redirect("login")
             if request.session.get("clave_vencida") and request.resolver_match.url_name != "cambiar_clave":
                 return redirect("cambiar_clave")
             if roles and request.user.rol not in roles:

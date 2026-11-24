@@ -22,7 +22,7 @@ class Command(BaseCommand):
         username = Usuario.normalize_username(input("Nombre de usuario: ").strip())
         nombre = input("Nombre real: ").strip()
         apellido = input("Apellido real: ").strip()
-        email = input("Correo real para recibir el OTP: ").strip()
+        email = input("Correo para recuperaci??n de cuenta: ").strip()
         if not all((username, nombre, apellido, email)):
             raise CommandError("Todos los campos son obligatorios.")
         try:

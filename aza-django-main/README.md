@@ -30,14 +30,9 @@ Abra `http://127.0.0.1:8000/` en el navegador del mismo equipo.
 
 Las siguientes contraseñas temporales permiten recuperar el acceso mientras se configura el despliegue. Deben cambiarse después del primer inicio de sesión.
 
-| Usuario | Rol | Contraseña temporal | Estado |
-|---|---|---|---|
-| `admin_prueba` | Administrador | `AzatC96oLAAsb1a9` | Activo |
-| `operador_prueba` | Operador | `Aza0YIa4xOfDGZC9` | Activo |
-| `richi` | Operador | `AzaGzLjOV4NOIRf9` | Inactivo |
-| `supervisor_prueba` | Supervisor | `AzaF3EBQj0A76QK9` | Activo |
+Las credenciales de prueba no deben publicarse. Cambie o desactive esas cuentas antes de usar el servicio.
 
-Las cuentas temporales son para desarrollo. Antes de publicar la aplicación, elimine o desactive las cuentas de prueba y cambie todas las credenciales. Los administradores requieren el código OTP enviado al correo configurado en su cuenta.
+Los Administradores ingresan con usuario y contrase??a; cambie cualquier contrase??a temporal antes de usar el servicio.
 
 Al preparar una base nueva, ejecute `migrate`, `importar_metricas` y `crear_admin`
 desde el entorno virtual. El comando `crear_admin` solicita los datos reales del
@@ -119,8 +114,8 @@ configura `DEBUG=0` y `DB_SCHEMA=aza`.
 
 Al crear el servicio, ingrese `DATABASE_URL` con la cadena Session pooler de
 Supabase, el puerto 5432 y el usuario/clave de base de datos con permisos sobre
-el esquema `aza`. El servicio puede iniciar sin SMTP, pero el OTP de Administrador y la recuperacion
-por correo quedan deshabilitados hasta configurar `EMAIL_HOST`, `EMAIL_HOST_USER`,
+el esquema `aza`. El servicio inicia sin SMTP, pero la recuperacion por correo queda deshabilitada
+hasta configurar `EMAIL_HOST`, `EMAIL_HOST_USER`,
 `EMAIL_HOST_PASSWORD` y `DEFAULT_FROM_EMAIL`. Render Free bloquea los puertos SMTP
 25, 465 y 587; use un proveedor con STARTTLS en un puerto permitido, por ejemplo
 2525, y ajuste `EMAIL_PORT` si corresponde.
@@ -172,9 +167,7 @@ se asignan automáticamente a un lote o receta. Al importar JSON, una captura se
 asocia al lote y receta cuando existe exactamente un lote para su fecha; si hay
 cero o varios lotes ese día, queda sin vínculo para evitar una atribución ambigua.
 
-El inicio de sesión de Administradores requiere OTP. En desarrollo local el código
-se muestra en pantalla; para un despliegue real se necesita configurar un servicio
-de correo. La API de captura queda deshabilitada hasta configurar
+Los Administradores ingresan con usuario y contrase??a. La recuperaci??n de claves por correo requiere SMTP. La API de captura queda deshabilitada hasta configurar
 `API_TOKEN_CAPTURA`. El proyecto Supabase contiene tablas previas en `public` sin
 RLS; deben revisarse por separado antes de utilizar su Data API.
 

@@ -5,14 +5,13 @@ import math
 import secrets
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.sessions.models import Session
 from django.core.paginator import Paginator
-from django.utils.crypto import salted_hmac
 from django.db import transaction
 from django.db.models import Count, Max, Min, Q
 from django.db.models.functions import TruncDate
@@ -29,7 +28,7 @@ from openpyxl import Workbook
 from .decorators import rol_requerido
 from .forms import (
     AuditoriaFiltroForm, ConfigRespaldoForm, EvidenciaForm, HistorialFiltroForm, IpForm, LoginForm, LoteForm,
-    MetricasFiltroForm, NuevaClaveForm, OTPForm, RecetaForm, RecuperarForm, UsuarioForm,
+    MetricasFiltroForm, NuevaClaveForm, RecetaForm, RecuperarForm, UsuarioForm,
 )
 from .models import (
     Alerta, Auditoria, BloqueoIP, EnvioAPI, IntentoLogin, Inspeccion, IpPermitida, Lote,
@@ -55,9 +54,8 @@ def home(request):
     return redirect(destinos.get(request.user.rol, "login"))
 
 
-def _finalizar_login(request, usuario, ip, otp_verificado=False):
+def _finalizar_login(request, usuario, ip):
     login(request, usuario)
-    request.session["otp_verificado"] = bool(otp_verificado and usuario.rol == ADM)
     request.session["auth_version"] = str(usuario.version_seguridad)
     IntentoLogin.objects.create(username=usuario.username, ip=ip, exitoso=True, motivo="ok")
     vigencia = get_param("clave_vigencia_dias")
@@ -69,36 +67,6 @@ def _finalizar_login(request, usuario, ip, otp_verificado=False):
     if destino.startswith("/") and not destino.startswith("//"):
         return redirect(destino)
     return redirect("home")
-
-
-def _firma_otp(usuario):
-    contexto = f"{usuario.password}\0{usuario.email.casefold()}\0{usuario.is_active}\0{usuario.version_seguridad}"
-    return salted_hmac("trefilado.otp", contexto, algorithm="sha256").hexdigest()
-
-
-def _emitir_otp(request, usuario, reenvio=False):
-    previo = request.session.get("pre_auth") if reenvio else None
-    if reenvio and (not previo or previo.get("user_id") != usuario.pk or previo.get("reenviados", 0) >= 2):
-        return False
-    codigo = f"{secrets.randbelow(10**6):06d}"
-    nuevo = {
-        "user_id": usuario.pk,
-        "codigo": codigo,
-        "expira": (timezone.now() + timedelta(minutes=5)).isoformat(),
-        "reenviados": previo.get("reenviados", 0) + 1 if previo else 0,
-        "clave": _firma_otp(usuario),
-    }
-    try:
-        enviado = enviar_correo(usuario.email, "Código de verificación AZA", f"Su código OTP es: {codigo} (vence en 5 minutos).")
-    except Exception:
-        enviado = False
-    if not enviado:
-        request.session.pop("pre_auth", None)
-        return False
-    request.session["pre_auth"] = nuevo
-    if getattr(settings, "MOSTRAR_CODIGOS_EN_PANTALLA", settings.DEBUG):
-        messages.info(request, f"Código de verificación enviado a su correo: {codigo}")
-    return True
 
 
 def login_view(request):
@@ -135,52 +103,9 @@ def login_view(request):
             messages.error(request, "Acceso no permitido desde esta dirección IP. Los Operadores solo pueden ingresar desde la red de la planta.")
             return render(request, "trefilado/login.html", {"form": form})
 
-        if usuario.rol == ADM:
-            if _emitir_otp(request, usuario):
-                return redirect("login_otp")
-            if not getattr(settings, "EMAIL_CONFIGURADO", True):
-                messages.error(request, "SMTP no esta configurado. El Administrador no puede iniciar sesion hasta habilitar el correo.")
-            else:
-                messages.error(request, "No se pudo enviar el c\u00f3digo de verificaci\u00f3n. Intente m\u00e1s tarde.")
-            return render(request, "trefilado/login.html", {"form": form})
-
         return _finalizar_login(request, usuario, ip)
     return render(request, "trefilado/login.html", {"form": form})
 
-
-def login_otp(request):
-    pre = request.session.get("pre_auth")
-    if not pre:
-        return redirect("login")
-    usuario = Usuario.objects.filter(pk=pre["user_id"]).first()
-    if usuario is None or not usuario.is_active or usuario.rol != ADM or not secrets.compare_digest(
-        _firma_otp(usuario), pre.get("clave", "")
-    ):
-        request.session.pop("pre_auth", None)
-        return redirect("login")
-    form = OTPForm(request.POST or None)
-    if request.method == "POST":
-        ip = obtener_ip(request)
-        if login_bloqueado(usuario.username):
-            request.session.pop("pre_auth", None)
-            messages.error(request, "Acceso bloqueado temporalmente por intentos fallidos.")
-            return redirect("login")
-        if "reenviar" in request.POST:
-            if _emitir_otp(request, usuario, reenvio=True):
-                messages.success(request, "Se envió un nuevo código.")
-                return redirect("login_otp")
-            request.session.pop("pre_auth", None)
-            messages.error(request, "No se pudo reenviar el código. Inicie sesión nuevamente.")
-            return redirect("login")
-        if form.is_valid():
-            expirado = datetime.fromisoformat(pre["expira"]) < timezone.now()
-            if expirado or form.cleaned_data["codigo"] != pre["codigo"]:
-                registrar_fallo_login(usuario.username, ip, "otp")
-                messages.error(request, "Código OTP incorrecto o expirado. Puede reintentar o solicitar un nuevo código.")
-            else:
-                request.session.pop("pre_auth", None)
-                return _finalizar_login(request, usuario, ip, otp_verificado=True)
-    return render(request, "trefilado/login_otp.html", {"form": form, "usuario": usuario})
 
 
 @require_POST
@@ -721,7 +646,7 @@ def usuarios(request):
 def _cerrar_sesiones_usuario(usuario_id):
     for sesion in Session.objects.filter(expire_date__gt=timezone.now()):
         datos = sesion.get_decoded()
-        if datos.get("_auth_user_id") == str(usuario_id) or datos.get("pre_auth", {}).get("user_id") == usuario_id:
+        if datos.get("_auth_user_id") == str(usuario_id):
             sesion.delete()
 
 

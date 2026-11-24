@@ -317,7 +317,6 @@ class AdministradorInicialTests(TestCase):
         self.assertFalse(Usuario.objects.exists())
 
 
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend", MOSTRAR_CODIGOS_EN_PANTALLA=False)
 class AccesoAdministradorTests(TestCase):
     def _crear_usuario(self, rol):
         return Usuario.objects.create_user(
@@ -327,46 +326,23 @@ class AccesoAdministradorTests(TestCase):
     def _login(self):
         return self.client.post(reverse("login"), {"username": "usuario_aza", "password": "ClaveSegura9"})
 
-    @patch("trefilado.views.secrets.randbelow", return_value=51024)
-    def test_administrador_accede_al_control_despues_del_codigo_enviado(self, _aleatorio):
+    def test_administrador_ingresa_solo_con_usuario_y_contrasena(self):
         usuario = self._crear_usuario(Usuario.Rol.ADMINISTRADOR)
-        self.assertRedirects(self._login(), reverse("login_otp"))
-        self.assertNotIn(SESSION_KEY, self.client.session)
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].to, [usuario.email])
-        self.assertIn("051024", mail.outbox[0].body)
-
-        respuesta = self.client.post(reverse("login_otp"), {"codigo": "051024"})
+        respuesta = self._login()
         self.assertRedirects(respuesta, reverse("home"), fetch_redirect_response=False)
         self.assertEqual(self.client.session[SESSION_KEY], str(usuario.pk))
-        self.assertNotIn("pre_auth", self.client.session)
         self.assertEqual(self.client.get(reverse("control")).status_code, 200)
 
-    def test_supervisor_promovido_debe_iniciar_sesion_con_otp(self):
+    def test_supervisor_promovido_puede_usar_acceso_administrativo_sin_otp(self):
         usuario = self._crear_usuario(Usuario.Rol.SUPERVISOR)
         self.assertRedirects(self._login(), reverse("home"), fetch_redirect_response=False)
         self.assertEqual(self.client.session[SESSION_KEY], str(usuario.pk))
 
         Usuario.objects.filter(pk=usuario.pk).update(rol=Usuario.Rol.ADMINISTRADOR)
-        self.assertRedirects(self.client.get(reverse("control")), reverse("login"))
-        self.assertNotIn(SESSION_KEY, self.client.session)
+        self.assertEqual(self.client.get(reverse("control")).status_code, 200)
 
-    @patch("trefilado.views.enviar_correo", side_effect=SMTPException("falló el proveedor"))
-    def test_fallo_del_correo_no_autentica_ni_abre_desafio(self, _correo):
-        self._crear_usuario(Usuario.Rol.ADMINISTRADOR)
-        self.assertContains(self._login(), "No se pudo enviar el código de verificación")
-        self.assertNotIn("pre_auth", self.client.session)
-        self.assertNotIn(SESSION_KEY, self.client.session)
-
-    def test_fallo_del_reenvio_descarta_codigo_previo(self):
-        self._crear_usuario(Usuario.Rol.ADMINISTRADOR)
-        self.assertRedirects(self._login(), reverse("login_otp"))
-        self.assertIn("pre_auth", self.client.session)
-
-        with patch("trefilado.views.enviar_correo", side_effect=SMTPException("falló el proveedor")):
-            self.assertRedirects(self.client.post(reverse("login_otp"), {"reenviar": "1"}), reverse("login"))
-        self.assertNotIn("pre_auth", self.client.session)
-        self.assertNotIn(SESSION_KEY, self.client.session)
+    def test_ruta_otp_ya_no_existe(self):
+        self.assertEqual(self.client.get("/login/otp/").status_code, 404)
 
 
 @override_settings(
@@ -438,38 +414,34 @@ class InvalidacionCredencialesTests(TestCase):
 
     def setUp(self):
         self.gestion = Client()
-        with patch("trefilado.views.secrets.randbelow", return_value=31294):
-            respuesta = self.gestion.post(reverse("login"), {
-                "username": self.administrador.username, "password": "ClaveGestion8",
-            })
-        self.assertRedirects(respuesta, reverse("login_otp"))
-        respuesta = self.gestion.post(reverse("login_otp"), {"codigo": "031294"})
+        respuesta = self.gestion.post(reverse("login"), {
+            "username": self.administrador.username, "password": "ClaveGestion8",
+        })
         self.assertRedirects(respuesta, reverse("home"), fetch_redirect_response=False)
 
-    def _iniciar_desafio_otp(self):
-        with patch("trefilado.views.secrets.randbelow", return_value=51024):
-            respuesta = self.client.post(reverse("login"), {
-                "username": self.usuario.username, "password": "ClaveOriginal9",
-            })
-        self.assertRedirects(respuesta, reverse("login_otp"))
-        self.assertIn("pre_auth", self.client.session)
+    def _iniciar_sesion_objetivo(self):
+        respuesta = self.client.post(reverse("login"), {
+            "username": self.usuario.username, "password": "ClaveOriginal9",
+        })
+        self.assertRedirects(respuesta, reverse("home"), fetch_redirect_response=False)
         return self.client.session.session_key
 
     def _crear_credenciales_pendientes(self):
-        sesion_otp = self._iniciar_desafio_otp()
+        sesion = self._iniciar_sesion_objetivo()
         respuesta = self.client.post(reverse("recuperar"), {"identificador": self.usuario.email})
         self.assertRedirects(respuesta, reverse("recuperar"))
         token = TokenRecuperacion.objects.get(usuario=self.usuario)
         ruta = reverse("recuperar_confirmar", args=[token.token])
         self.assertEqual(self.client.get(ruta).status_code, 200)
-        return sesion_otp, token, ruta
+        return sesion, token, ruta
 
-    def _comprobar_invalidacion(self, sesion_otp, token, ruta, clave_vigente="ClaveOriginal9"):
-        self.assertFalse(Session.objects.filter(session_key=sesion_otp).exists())
+    def _comprobar_invalidacion(self, sesion, token, ruta, clave_vigente="ClaveOriginal9"):
+        self.assertFalse(Session.objects.filter(session_key=sesion).exists())
         token.refresh_from_db()
         self.assertTrue(token.usado)
-        respuesta = self.client.post(reverse("login_otp"), {"codigo": "051024"})
-        self.assertRedirects(respuesta, reverse("login"))
+        respuesta = self.client.get(reverse("control"))
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertTrue(respuesta.url.startswith(reverse("login")))
         self.assertNotIn(SESSION_KEY, self.client.session)
         respuesta = self.client.post(ruta, {"password1": "ClaveRestablecida7", "password2": "ClaveRestablecida7"})
         self.assertRedirects(respuesta, reverse("recuperar"))
@@ -487,17 +459,17 @@ class InvalidacionCredencialesTests(TestCase):
         self._editar_usuario(email="nuevo@example.org")
         self.assertEqual(self.usuario.email, "nuevo@example.org")
 
-    def test_editar_correo_invalida_otp_y_enlace_de_recuperacion(self):
-        sesion_otp, token, ruta = self._crear_credenciales_pendientes()
+    def test_editar_correo_invalida_sesion_y_enlace_de_recuperacion(self):
+        sesion, token, ruta = self._crear_credenciales_pendientes()
         self._editar_correo()
-        self._comprobar_invalidacion(sesion_otp, token, ruta)
+        self._comprobar_invalidacion(sesion, token, ruta)
 
     def test_editar_solo_clave_renueva_version_de_seguridad(self):
-        sesion_otp, token, ruta = self._crear_credenciales_pendientes()
+        sesion, token, ruta = self._crear_credenciales_pendientes()
         version_anterior = self.usuario.version_seguridad
         self._editar_usuario(password="ClaveEditada8")
         self.assertNotEqual(self.usuario.version_seguridad, version_anterior)
-        self._comprobar_invalidacion(sesion_otp, token, ruta, clave_vigente="ClaveEditada8")
+        self._comprobar_invalidacion(sesion, token, ruta, clave_vigente="ClaveEditada8")
 
     def test_instancia_obsoleta_no_cambia_clave_de_cuenta_activa(self):
         obsoleta = Usuario.objects.get(pk=self.usuario.pk)
@@ -530,40 +502,20 @@ class InvalidacionCredencialesTests(TestCase):
         self.assertFalse(self.usuario.is_active)
         self.assertTrue(self.usuario.check_password("ClaveOriginal9"))
 
-    def test_rechaza_sesion_otp_finalizada_con_version_anterior_al_cambio_de_correo(self):
-        self._iniciar_desafio_otp()
-        version_anterior = self.usuario.version_seguridad
-        finalizar_login = views._finalizar_login
-
-        def cambiar_correo_antes_de_guardar_sesion(request, usuario, ip, otp_verificado=False):
-            self._editar_correo()
-            return finalizar_login(request, usuario, ip, otp_verificado=otp_verificado)
-
-        with patch.object(views, "_finalizar_login", side_effect=cambiar_correo_antes_de_guardar_sesion):
-            respuesta = self.client.post(reverse("login_otp"), {"codigo": "051024"})
-        self.assertRedirects(respuesta, reverse("home"), fetch_redirect_response=False)
-        self.assertNotEqual(self.usuario.version_seguridad, version_anterior)
-        self.assertEqual(self.client.session["auth_version"], str(version_anterior))
-        self.assertEqual(self.client.session[SESSION_KEY], str(self.usuario.pk))
-        self.assertTrue(self.client.session["otp_verificado"])
-
-        self.assertRedirects(self.client.get(reverse("control")), reverse("login"))
-        self.assertNotIn(SESSION_KEY, self.client.session)
-
-    def test_desactivar_y_reactivar_no_rehabilita_otp_ni_enlace_previo(self):
-        sesion_otp, token, ruta = self._crear_credenciales_pendientes()
+    def test_desactivar_y_reactivar_invalida_sesion_y_enlace_previo(self):
+        sesion, token, ruta = self._crear_credenciales_pendientes()
         estado = reverse("usuario_estado", args=[self.usuario.pk])
         self.assertRedirects(self.gestion.post(estado), reverse("usuarios"))
         self.usuario.refresh_from_db()
         self.assertFalse(self.usuario.is_active)
-        self.assertFalse(Session.objects.filter(session_key=sesion_otp).exists())
+        self.assertFalse(Session.objects.filter(session_key=sesion).exists())
         token.refresh_from_db()
         self.assertTrue(token.usado)
 
         self.assertRedirects(self.gestion.post(estado), reverse("usuarios"))
         self.usuario.refresh_from_db()
         self.assertTrue(self.usuario.is_active)
-        self._comprobar_invalidacion(sesion_otp, token, ruta)
+        self._comprobar_invalidacion(sesion, token, ruta)
 
 
 class ConfiguracionProduccionTests(SimpleTestCase):

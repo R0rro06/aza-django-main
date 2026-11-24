@@ -63,7 +63,7 @@ for variable in ("RENDER_EXTERNAL_URL", "PUBLIC_BASE_URL"):
         if PUBLIC_BASE_URL not in CSRF_TRUSTED_ORIGINS:
             CSRF_TRUSTED_ORIGINS.append(PUBLIC_BASE_URL)
 
-# Solo en desarrollo local se muestra el OTP o enlace de recuperación en pantalla.
+# Solo en desarrollo local se muestra el enlace de recuperacion en pantalla.
 MOSTRAR_CODIGOS_EN_PANTALLA = DEBUG
 
 INSTALLED_APPS = [
@@ -229,7 +229,7 @@ else:
         EMAIL_TIMEOUT = 10
     else:
         # Deja disponible la pagina mientras se configura SMTP; el envio de
-        # OTP y recuperacion permanece deshabilitado hasta tener credenciales.
+        # La recuperacion por correo permanece deshabilitada hasta tener credenciales.
         EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # Sin token configurado, la API de captura queda deshabilitada.

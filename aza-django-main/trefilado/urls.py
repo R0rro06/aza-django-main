@@ -6,7 +6,6 @@ urlpatterns = [
     path("", views.home, name="home"),
     # Autenticación (CU01, CU02)
     path("login/", views.login_view, name="login"),
-    path("login/otp/", views.login_otp, name="login_otp"),
     path("logout/", views.logout_view, name="logout"),
     path("clave/cambiar/", views.cambiar_clave_view, name="cambiar_clave"),
     path("recuperar/", views.recuperar, name="recuperar"),
